@@ -17,6 +17,16 @@ class ForwardBackwardsHMM():
     def foward_backwards(self):
         pass
 
+    def _forwards_np(self):
+        alphas = np.zeros((self.n_states, self.n_observations))
+        # forward part
+        alphas[:, 0] = self.init_probs
+        alphas = np.zeros((self.n_states, self.n_observations))
+        for obs_ind in range(0, self.n_observations):
+            f_row_vec = np.matrix(alphas[:, obs_ind])
+            alphas[:, obs_ind + 1] = f_row_vec * np.matrix(self.trans_probs) * np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[obs_ind]]))
+            alphas[:, obs_ind + 1] = alphas[:, obs_ind + 1] / np.sum(alphas[:, obs_ind + 1])
+
     def _forwards(self):
         alphas = np.zeros((self.n_states, self.n_observations))
 
@@ -43,3 +53,4 @@ if __name__ == "__main__":
     print(pyk_xk.shape)
     fbhmm = ForwardBackwardsHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     print(fbhmm._forwards())
+    print(fbhmm._forwards_np())
