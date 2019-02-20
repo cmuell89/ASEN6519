@@ -1,1 +1,3 @@
 exercise1/env/
+*.pyc
+/__pycache__
