@@ -23,9 +23,7 @@ class ForwardBackwardHMM():
         for each state at each time step.
         """
         alphas = self._forward()
-        print(alphas.transpose())
         betas = self._backward()
-        print(betas.transpose())
         # recast as np.arrays to perform element-wise multiplication
         for i in range(self.n_observations):
             print(np.sum(alphas[:, i] * betas[:, i]))
@@ -39,15 +37,12 @@ class ForwardBackwardHMM():
         The forward (filtering) pass starting from the initial time step to the ending time step. 
         alphas stores the calculated alpha value at each iteration normalized across states to avoid
         vanishing probabilities. The initial time step t_0 is initialized with the initial state 
-        probabilities. 
+        probabilities.
         """
         alphas = np.zeros((self.n_states, self.n_observations + 1))
         alphas[:, 0] = self.init_probs
         for k in range(0, self.n_observations):
-            # alphas[:, k] = np.matrix(alphas[:, k - 1]) * np.matrix(self.trans_probs) * np.matrix(
-            #     np.diag(self.ev_probs.transpose()[:, self.observations[k]]))
             alphas[:, k + 1] = alphas[:, k].dot(self.trans_probs.transpose()) * self.ev_probs[self.observations[k], :]
-
         return alphas
 
     def _forward_iter(self):
