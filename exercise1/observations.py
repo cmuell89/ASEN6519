@@ -61,3 +61,6 @@ y_obs_short = np.array([14,
                         1,
                         5,
                         2])
+
+y_obs_short = y_obs_short - 1
+y_obs_long = y_obs_long - 1

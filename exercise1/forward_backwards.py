@@ -1,6 +1,8 @@
 import numpy as np
 from observations import y_obs_long, y_obs_short
 from parameters import pxk_xkm1, pyk_xk, px0
+import colored_traceback
+colored_traceback.add_hook()
 
 
 class ForwardBackwardHMM():
@@ -20,10 +22,13 @@ class ForwardBackwardHMM():
         and backward passes. They are then multiplied and normalized to get the full probabilities 
         for each state at each time step.
         """
-        alphas = self._forward_iter()
+        alphas = self._forward()
+        print(alphas.transpose())
         betas = self._backward()
-
+        print(betas.transpose())
         # recast as np.arrays to perform element-wise multiplication
+        for i in range(self.n_observations):
+            print(np.sum(alphas[:, i] * betas[:, i]))
         probs = np.array(alphas) * np.array(betas)
         probs = probs / np.sum(probs, 0)
 
@@ -38,28 +43,24 @@ class ForwardBackwardHMM():
         """
         alphas = np.zeros((self.n_states, self.n_observations + 1))
         alphas[:, 0] = self.init_probs
-        for ob_idx in range(self.n_observations):
-            alpha_vec = np.matrix(alphas[:, ob_idx])
-            alphas[:, ob_idx + 1] = alpha_vec * np.matrix(self.trans_probs.transpose()) * np.matrix(
-                np.diag(self.ev_probs.transpose()[:, self.observations[ob_idx]]))
-            # normalize
-            alphas[:, ob_idx + 1] = alphas[:, ob_idx + 1] / \
-                np.sum(alphas[:, ob_idx + 1])
-        return alphas[:, 1:self.n_observations + 1]
+        for k in range(0, self.n_observations):
+            # alphas[:, k] = np.matrix(alphas[:, k - 1]) * np.matrix(self.trans_probs) * np.matrix(
+            #     np.diag(self.ev_probs.transpose()[:, self.observations[k]]))
+            alphas[:, k + 1] = alphas[:, k].dot(self.trans_probs.transpose()) * self.ev_probs[self.observations[k], :]
+
+        return alphas
 
     def _forward_iter(self):
-        alphas = np.zeros((self.n_observations, self.n_states))
+        alphas = np.zeros((self.n_states, self.n_observations + 1))
 
         # base case
-        alphas[0, :] = self.init_probs
+        alphas[:, 0] = self.init_probs
         # recursive case
-        for i in range(1, self.n_observations):
-            for s2 in range(self.n_states):
-                for s1 in range(self.n_states):
-                    alphas[i, s2] += alphas[i - 1, s1] * self.trans_probs[s2,
-                                                                          s1] * self.ev_probs.transpose()[s2, self.observations[i]]
-            alphas[i - 1, :] = alphas[i - 1, :] / np.sum(alphas[i - 1, :])
-        return alphas.transpose()
+        for k in range(0, self.n_observations):
+            for i in range(self.n_states):
+                for j in range(self.n_states):
+                    alphas[i, k + 1] += alphas[j, k] * self.trans_probs[i, j] * self.ev_probs[self.observations[k], i]
+        return alphas
 
     def _backward(self):
         """
@@ -69,17 +70,13 @@ class ForwardBackwardHMM():
         """
         betas = np.zeros((self.n_states, self.n_observations + 1))
         betas[:, -1] = 1
-        for ob_idx in range(self.n_observations, 0, -1):
-            beta_vec = np.matrix(betas[:, ob_idx]).transpose()
-            betas[:, ob_idx - 1] = (np.matrix(self.trans_probs.transpose()) *
-                                    np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[ob_idx - 1]])) *
-                                    beta_vec).transpose()
-            # normalize
-            betas[:, ob_idx - 1] = betas[:, ob_idx - 1] / \
-                np.sum(betas[:, ob_idx - 1])
-        return betas[:, 0:self.n_observations]
+        for k in range(self.n_observations, 1, -1):
+            beta_vec = np.matrix(betas[:, k]).transpose()
+            betas[:, k - 1] = (np.matrix(self.trans_probs.transpose()) *
+                               np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[k - 1]])) *
+                               beta_vec).transpose()
+        return betas[:, 0:self.n_observations + 1]
 
 if __name__ == "__main__":
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
-    print(probs.transpose())
