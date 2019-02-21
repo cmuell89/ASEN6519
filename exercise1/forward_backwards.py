@@ -25,11 +25,12 @@ class ForwardBackwardHMM():
         alphas = self._forward()
         betas = self._backward()
         # recast as np.arrays to perform element-wise multiplication
-        for i in range(self.n_observations):
-            print(np.sum(alphas[:, i] * betas[:, i]))
+        
         probs = np.array(alphas) * np.array(betas)
         probs = probs / np.sum(probs, 0)
 
+        for i in range(self.n_observations):
+            print(np.sum(alphas[:, i] * betas[:, i]))
         return probs, alphas, betas
 
     def _forward(self):
@@ -75,3 +76,4 @@ class ForwardBackwardHMM():
 if __name__ == "__main__":
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
+    print(probs.transpose())
