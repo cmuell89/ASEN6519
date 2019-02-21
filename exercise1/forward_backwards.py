@@ -1,6 +1,7 @@
 import numpy as np
 from observations import y_obs_long, y_obs_short
 from parameters import pxk_xkm1, pyk_xk, px0
+from exponential_scaling import eexp, eln, elnsum, elnproduct
 import colored_traceback
 colored_traceback.add_hook()
 
@@ -22,10 +23,11 @@ class ForwardBackwardHMM():
         and backward passes. They are then multiplied and normalized to get the full probabilities 
         for each state at each time step.
         """
-        alphas = self._forward()
-        betas = self._backward()
+        alphas = self._forward_iter()
+        betas = self._backward_iter()
+        print(self._forward_iter_logsafe().transpose())
         # recast as np.arrays to perform element-wise multiplication
-        
+
         probs = np.array(alphas) * np.array(betas)
         probs = probs / np.sum(probs, 0)
 
@@ -58,6 +60,20 @@ class ForwardBackwardHMM():
                     alphas[i, k + 1] += alphas[j, k] * self.trans_probs[i, j] * self.ev_probs[self.observations[k], i]
         return alphas
 
+    def _forward_iter_logsafe(self):
+        logalphas = np.zeros((self.n_states, self.n_observations + 1))
+
+        # base case
+        logalphas[:, 0] = [eln(x) for x in self.init_probs]
+        # recursive case
+        for k in range(0, self.n_observations):
+            for i in range(self.n_states):
+                for j in range(self.n_states):
+                    print(eln(logalphas[j, k]))
+                    logalphas[i, k + 1] = elnsum(logalphas[i, k + 1], elnproduct(eln(logalphas[j, k]), eln(self.trans_probs[i, j])))
+                logalphas[i, k + 1] = elnproduct(logalphas[i, k + 1], eln(self.trans_probs[i, j]))
+        return logalphas
+
     def _backward(self):
         """
         The backward (smoothing) pass starting from the an arbitrary future time step to 
@@ -66,14 +82,34 @@ class ForwardBackwardHMM():
         """
         betas = np.zeros((self.n_states, self.n_observations + 1))
         betas[:, -1] = 1
-        for k in range(self.n_observations, 1, -1):
+        for k in range(self.n_observations, 0, -1):
             beta_vec = np.matrix(betas[:, k]).transpose()
-            betas[:, k - 1] = (np.matrix(self.trans_probs.transpose()) *
-                               np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[k - 1]])) *
-                               beta_vec).transpose()
-        return betas[:, 0:self.n_observations + 1]
+            betas[:, k - 1] = (np.matrix(self.trans_probs.transpose()) * np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[k - 1]])) * beta_vec).transpose()
+        return betas
+
+    def _backward_iter(self):
+        betas = np.zeros((self.n_states, self.n_observations + 1))
+        # base case
+        betas[:, -1] = 1
+        # recursive case
+        for k in range(self.n_observations, 0, -1):
+            for i in range(self.n_states):
+                for j in range(self.n_states):
+                    betas[i, k - 1] += self.trans_probs[j, i] * self.ev_probs[self.observations[k - 1], j] * betas[j, k]
+        return betas
+
+    def _backward_iter_logsafe(self):
+        betas = np.zeros((self.n_states, self.n_observations + 1))
+        # base case
+        betas[:, -1] = 1
+        # recursive case
+        for k in range(self.n_observations, 0, -1):
+            for i in range(self.n_states):
+                for j in range(self.n_states):
+                    betas[i, k - 1] += self.trans_probs[j, i] * self.ev_probs[self.observations[k - 1], j] * betas[j, k]
+        return betas
+
 
 if __name__ == "__main__":
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
-    print(probs.transpose())
