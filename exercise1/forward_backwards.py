@@ -64,12 +64,13 @@ class ForwardBackwardHMM():
         logalphas = np.zeros((self.n_states, self.n_observations + 1))
 
         # base case
-        logalphas[:, 0] = [eln(x) for x in self.init_probs]
+        logalphas[:, 0] = [eln(x) for x in self.init_probs if x != 0]
         # recursive case
-        for k in range(0, self.n_observations):
+        for k in range(1, self.n_observations):
             for i in range(self.n_states):
+                logalphas[i, k + 1] = float('nan')
                 for j in range(self.n_states):
-                    print(eln(logalphas[j, k]))
+                    print(logalphas[j, k])
                     logalphas[i, k + 1] = elnsum(logalphas[i, k + 1], elnproduct(eln(logalphas[j, k]), eln(self.trans_probs[i, j])))
                 logalphas[i, k + 1] = elnproduct(logalphas[i, k + 1], eln(self.trans_probs[i, j]))
         return logalphas
