@@ -2,7 +2,6 @@ import numpy as np
 from numpy.random import choice
 from observations import y_obs_long, y_obs_short
 from parameters import pxk_xkm1, pyk_xk, px0
-from exponential_scaling import eexp, eln, elnsum, elnproduce
 import colored_traceback
 colored_traceback.add_hook()
 

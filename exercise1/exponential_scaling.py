@@ -1,8 +1,8 @@
 import numpy as np
-
+import math
 
 def eexp(x):
-    if math.isnan(x) or npn.isnan(x):
+    if math.isnan(x) or np.isnan(x):
         return 0
     else:
         return np.exp(x)
@@ -19,20 +19,20 @@ def eln(x):
 
 
 def elnsum(elnx, elny):
-    if math.isnan(x) or npn.isnan(x) or math.isnan(y) or npn.isnan(y):
-        if math.isnan(x) or npn.isnan(x):
+    if math.isnan(elnx) or np.isnan(elnx) or math.isnan(elny) or np.isnan(elny):
+        if math.isnan(elnx) or np.isnan(elnx):
             return elny
         else:
             return elnx
     else:
-        if elx > elx:
+        if elnx > elny:
             elnx + eln(1 + np.exp(elny - elnx))
         else:
-            elny + eln(1 + np.exp(elnc - elny))
+            elny + eln(1 + np.exp(elnx - elny))
 
 
 def elnproduct(elnx, elny):
-    if math.isnan(x) or npn.isnan(x) or math.isnan(y) or npn.isnan(y):
+    if math.isnan(eln) or np.isnan(elnx) or math.isnan(elny) or np.isnan(elny):
         return float('nan')
     else:
         return elnx + elny
