@@ -16,6 +16,11 @@ class ForwardBackwardHMM():
         self.n_observations = len(observations)
         self.observations = observations
 
+    def max_liklihood_state_estimate(self, probs):
+        probs = probs.transpose()
+        states = [np.argmax(prob_vec) + 1 for prob_vec in probs]
+        return states
+
     def forward_backward(self):
         """
         Implements the forward backward algorithm for a simple HMM example. This function calls 
@@ -25,15 +30,32 @@ class ForwardBackwardHMM():
         """
         alphas = self._forward_iter()
         betas = self._backward_iter()
-        print(self._forward_iter_logsafe().transpose())
-        # recast as np.arrays to perform element-wise multiplication
 
-        probs = np.array(alphas) * np.array(betas)
+
+        # recast as np.arrays to perform element-wise multiplication
+        probs = np.array(alphas)[:, 1:] * np.array(betas)[:, :self.n_observations]
         probs = probs / np.sum(probs, 0)
 
         for i in range(self.n_observations):
             print(np.sum(alphas[:, i] * betas[:, i]))
         return probs, alphas, betas
+
+    def forward_backward_eln(self):
+        logalphas = self._forward_iter_eln()
+        logbetas = self._backward_iter_eln()
+
+        probs = np.zeros((self.n_states, self.n_observations))
+        for k in range(0, self.n_observations):
+            norm = -np.inf
+            for i in range(self.n_states):
+                probs[i, k] = elnproduct(logalphas[i, k], logbetas[i, k])
+                norm = elnsum(norm, probs[i, k])
+            for i in range(self.n_states):
+                probs[i, k] = elnproduct(probs[i, k], -norm)
+        print("SUMS BITCH!")
+        for i in range(self.n_observations):
+            print(sum([p for p in list(probs[:, i]) if p != -np.inf]))
+        return probs, logalphas, logbetas
 
     def _forward(self):
         """
@@ -45,35 +67,9 @@ class ForwardBackwardHMM():
         alphas = np.zeros((self.n_states, self.n_observations + 1))
         alphas[:, 0] = self.init_probs
         for k in range(0, self.n_observations):
-            alphas[:, k + 1] = alphas[:, k].dot(self.trans_probs.transpose()) * self.ev_probs[self.observations[k], :]
+            alphas[:, k + 1] = alphas[:, k].dot(self.trans_probs.transpose()) * self.ev_probs[
+                self.observations[k], :]
         return alphas
-
-    def _forward_iter(self):
-        alphas = np.zeros((self.n_states, self.n_observations + 1))
-
-        # base case
-        alphas[:, 0] = self.init_probs
-        # recursive case
-        for k in range(0, self.n_observations):
-            for i in range(self.n_states):
-                for j in range(self.n_states):
-                    alphas[i, k + 1] += alphas[j, k] * self.trans_probs[i, j] * self.ev_probs[self.observations[k], i]
-        return alphas
-
-    def _forward_iter_logsafe(self):
-        logalphas = np.zeros((self.n_states, self.n_observations + 1))
-
-        # base case
-        logalphas[:, 0] = [eln(x) for x in self.init_probs if x != 0]
-        # recursive case
-        for k in range(1, self.n_observations):
-            for i in range(self.n_states):
-                logalphas[i, k + 1] = float('nan')
-                for j in range(self.n_states):
-                    print(logalphas[j, k])
-                    logalphas[i, k + 1] = elnsum(logalphas[i, k + 1], elnproduct(eln(logalphas[j, k]), eln(self.trans_probs[i, j])))
-                logalphas[i, k + 1] = elnproduct(logalphas[i, k + 1], eln(self.trans_probs[i, j]))
-        return logalphas
 
     def _backward(self):
         """
@@ -85,8 +81,22 @@ class ForwardBackwardHMM():
         betas[:, -1] = 1
         for k in range(self.n_observations, 0, -1):
             beta_vec = np.matrix(betas[:, k]).transpose()
-            betas[:, k - 1] = (np.matrix(self.trans_probs.transpose()) * np.matrix(np.diag(self.ev_probs.transpose()[:, self.observations[k - 1]])) * beta_vec).transpose()
+            betas[:, k - 1] = (np.matrix(self.trans_probs.transpose()) * np.matrix(np.diag(
+                self.ev_probs.transpose()[:, self.observations[k - 1]])) * beta_vec).transpose()
         return betas
+
+    def _forward_iter(self):
+        alphas = np.zeros((self.n_states, self.n_observations + 1))
+
+        # base case
+        alphas[:, 0] = self.init_probs
+        # recursive case
+        for k in range(0, self.n_observations):
+            for i in range(self.n_states):
+                for j in range(self.n_states):
+                    alphas[i, k + 1] += alphas[j, k] * self.trans_probs[i,
+                                                                        j] * self.ev_probs[self.observations[k], i]
+        return alphas
 
     def _backward_iter(self):
         betas = np.zeros((self.n_states, self.n_observations + 1))
@@ -96,21 +106,51 @@ class ForwardBackwardHMM():
         for k in range(self.n_observations, 0, -1):
             for i in range(self.n_states):
                 for j in range(self.n_states):
-                    betas[i, k - 1] += self.trans_probs[j, i] * self.ev_probs[self.observations[k - 1], j] * betas[j, k]
+                    betas[i, k - 1] += self.trans_probs[j, i] * \
+                        self.ev_probs[self.observations[
+                            k - 1], j] * betas[j, k]
         return betas
 
-    def _backward_iter_logsafe(self):
-        betas = np.zeros((self.n_states, self.n_observations + 1))
+    def _forward_iter_eln(self):
+        logalphas = np.zeros((self.n_states, self.n_observations + 1))
+
         # base case
-        betas[:, -1] = 1
+        logalphas[:, 0] = [eln(x) for x in self.init_probs]
+        # recursive case
+        for k in range(1, self.n_observations):
+            for j in range(self.n_states):
+                logalpha = -np.inf
+                for i in range(self.n_states):
+                    logalpha = elnsum(logalpha, elnproduct(
+                        logalphas[i, k - 1], eln(self.trans_probs.transpose()[i, j])))
+                logalphas[j, k] = elnproduct(logalpha, eln(
+                    self.ev_probs[self.observations[k], j]))
+        return logalphas
+
+    def _backward_iter_eln(self):
+        logbetas = np.zeros((self.n_states, self.n_observations + 1))
+        # base case
+        logbetas[:, -1] = 0
         # recursive case
         for k in range(self.n_observations, 0, -1):
             for i in range(self.n_states):
+                logbeta = -np.inf
                 for j in range(self.n_states):
-                    betas[i, k - 1] += self.trans_probs[j, i] * self.ev_probs[self.observations[k - 1], j] * betas[j, k]
-        return betas
+                    logbeta = elnsum(logbeta, elnproduct(eln(self.trans_probs.transpose()[i, j]), elnproduct(
+                        self.ev_probs[self.observations[k - 1], j], logbetas[j, k])))
+                logbetas[i, k - 1] = logbeta
+        return logbetas
 
 
 if __name__ == "__main__":
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
+    probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
+    print("Probabilities:")
+    print(probs.transpose())
+    print("\nELN Probabilities:")
+    print(probs_eln.transpose())
+    print("\nState Trace:")
+    print(fbhmm.max_liklihood_state_estimate(probs))
+    print("\nState Trace ELN: ")
+    print(fbhmm.max_liklihood_state_estimate(probs_eln))

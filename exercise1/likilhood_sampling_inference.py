@@ -32,7 +32,7 @@ class LiklihoodSamplingInference():
             xk_stack = list(zip(*samples))[k]
             for s in range(self.n_states):
                 idxs = [idx for idx, value in enumerate(xk_stack) if value == s]
-                prob.append(sum([weight for idx, weight in enumerate(weights) if idx in idxs]) / self.n_samples)
+                prob.append(sum([w for idx, w in enumerate(weights) if idx in idxs]) / self.n_samples)
             probs.append(prob)
 
     def liklihood_sampling(self):
@@ -41,7 +41,7 @@ class LiklihoodSamplingInference():
         xkm1 = self.sample_state(0, self.init_probs)
         X.append(xkm1)
         for k in range(0, self.n_observations):
-            xk = self.sample_state(xkm1, list(self.trans_probs[:, xkm1]))
+            xk = self.sample_state(list(self.trans_probs[:, xkm1]))
             ob_idx = self.observations[k]
             py_xk = self.ev_probs[ob_idx, xk]
             print(w)
@@ -50,10 +50,8 @@ class LiklihoodSamplingInference():
             xkm1 = xk
         return(X, w)
 
-    def sample_state(self, km1, probs):
+    def sample_state(self, probs):
         return choice(4, 1, p=probs)[0]
-
-    
 
 
 # http://www.cse.psu.edu/~rtc12/CSE598C/samplingSlides.pdf
