@@ -16,7 +16,7 @@ class ForwardBackwardHMM():
         self.n_observations = len(observations)
         self.observations = observations
 
-    def max_liklihood_state_estimate(self, probs):
+    def max_likelihood_state_estimate(self, probs):
         probs = probs.transpose()
         states = [np.argmax(prob_vec) + 1 for prob_vec in probs]
         return states
