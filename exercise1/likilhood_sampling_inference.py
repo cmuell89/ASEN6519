@@ -47,7 +47,7 @@ class LiklihoodSamplingInference():
         return samples, weights
 
     def liklihood_sampling(self):
-        w = eln(1)
+        w = 1
         X = []
         xkm1 = self.sample_state(self.init_probs)
         X.append(xkm1)
@@ -55,12 +55,10 @@ class LiklihoodSamplingInference():
             xk = self.sample_state(list(self.trans_probs[:, xkm1]))
             ob_idx = self.observations[k]
             py_xk = self.ev_probs[ob_idx, xk]
-            w = elnsum(w, eln(py_xk))
+            w = w * py_xk
             X.append(xk)
             xkm1 = xk
-        return(X, eexp(w))
-
-
+        return(X, w)
 
     def sample_state(self, probs):
         return choice(4, 1, p=probs)[0]
@@ -69,7 +67,7 @@ class LiklihoodSamplingInference():
 # http://www.cse.psu.edu/~rtc12/CSE598C/samplingSlides.pdf
 
 if __name__ == "__main__":
-    lli = LiklihoodSamplingInference(pxk_xkm1, pyk_xk, px0, y_obs_short, 100)
+    lli = LiklihoodSamplingInference(pxk_xkm1, pyk_xk, px0, y_obs_long, 10000)
     probs = lli.run_inference()
     for p in probs:
         print(p)

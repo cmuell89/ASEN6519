@@ -151,7 +151,7 @@ class ForwardBackwardHMM():
 
 
 if __name__ == "__main__":
-    fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_long)
+    fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
     probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
     print("Probabilities:")
@@ -159,6 +159,6 @@ if __name__ == "__main__":
     print("\nELN Probabilities:")
     print(probs_eln.transpose())
     print("\nState Trace:")
-    print(fbhmm.max_liklihood_state_estimate(probs))
+    print(fbhmm.max_likelihood_state_estimate(probs))
     print("\nState Trace ELN: ")
-    print(fbhmm.max_liklihood_state_estimate(probs_eln))
+    print(fbhmm.max_likelihood_state_estimate(probs_eln))
