@@ -25,7 +25,7 @@ class ViterbiHMM():
         best_states = []
 
         logprob = init + emis[:, self.obs[0]]
-        for k in range(self.n_obs):
+        for k in range(1, self.n_obs):
             trans_p = np.zeros([self.n_states, self.n_states])
             for i in range(self.n_states):
                 for j in range(self.n_states):
