@@ -14,7 +14,7 @@ def eln(x):
     if x > 0:
         return np.log(x)
     else:
-        raise("x must be non-negative for eln")
+        raise ValueError("x must be non-negative for eln")
 
 
 def elnsum(elnx, elny):
