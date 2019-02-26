@@ -67,7 +67,7 @@ class LiklihoodSamplingInference():
 # http://www.cse.psu.edu/~rtc12/CSE598C/samplingSlides.pdf
 
 if __name__ == "__main__":
-    lli = LiklihoodSamplingInference(pxk_xkm1, pyk_xk, px0, y_obs_long, 10000)
+    lli = LiklihoodSamplingInference(pxk_xkm1, pyk_xk, px0, y_obs_short, 5000)
     probs = lli.run_inference()
     for p in probs:
         print(p)
