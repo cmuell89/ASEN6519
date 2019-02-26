@@ -2,6 +2,7 @@ import numpy as np
 from observations import y_obs_long, y_obs_short
 from parameters import pxk_xkm1, pyk_xk, px0
 from exponential_scaling import eexp, eln, elnsum, elnproduct
+import matplotlib.pyplot as plt
 import colored_traceback
 colored_traceback.add_hook()
 
@@ -37,24 +38,16 @@ class ForwardBackwardHMM():
 
         for i in range(self.n_observations):
             print(np.sum(alphas[:, i + 1] * betas[:, i]))
+
         return probs, alphas, betas
 
     def forward_backward_eln(self):
         logalphas = self._forward_iter_eln()
         logbetas = self._backward_iter_eln()
 
-        print()
-        print(logalphas.transpose())
-        print()
-
         probs = np.zeros((self.n_states, self.n_observations))
         for k in range(0, self.n_observations):
             norm = -np.inf
-            print()
-            print(k)
-            print(logalphas[:, k].transpose())
-            print(logbetas[:, k].transpose())
-            print()
             for i in range(self.n_states):
                 probs[i, k] = elnproduct(logalphas[i, k + 1], logbetas[i, k])
                 norm = elnsum(norm, probs[i, k])
@@ -154,11 +147,18 @@ if __name__ == "__main__":
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
     probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
-    print("Probabilities:")
-    print(probs.transpose())
-    print("\nELN Probabilities:")
-    print(probs_eln.transpose())
-    print("\nState Trace:")
-    print(fbhmm.max_likelihood_state_estimate(probs))
-    print("\nState Trace ELN: ")
-    print(fbhmm.max_likelihood_state_estimate(probs_eln))
+ 
+    state_trace = fbhmm.max_likelihood_state_estimate(probs)
+
+    eln_state_trace = fbhmm.max_likelihood_state_estimate(probs_eln)
+
+    K = [i for i in range(0, len(y_obs_short))]
+
+    plt.step(K, state_trace)
+    plt.scatter(K, state_trace)
+    plt.step(K, eln_state_trace)
+    plt.scatter(K, state_trace)
+
+    plt.legend()
+
+    plt.show()
