@@ -143,7 +143,7 @@ class ForwardBackwardHMM():
         return logbetas
 
 
-def state_trace():
+def short_state_trace():
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
     probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
@@ -160,7 +160,6 @@ def state_trace():
     plt.title("State transition chart for Short Dataset")
     plt.ylabel("States")
     plt.xlabel("Timestamp K")
-
     plt.show()
 
 
@@ -175,15 +174,7 @@ def posterior_chart():
 def data_likelihood():
     fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
     probs, alphas, betas = fbhmm.forward_backward()
-    probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
-    P = -np.inf
-    for k in range(len(y_obs_short)):
-        sum_k = -np.inf
-        for s in range(4):
-            sum_k = elnsum(sum_k, logalphas[s:k])
-        print(sum_k)
-        P = elnsum(P, sum_k)
-    print(P)
+    print(eln(sum(alphas[:, len(y_obs_short)])))
 
 if __name__ == "__main__":
     # state_trace()
