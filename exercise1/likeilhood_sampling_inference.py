@@ -7,26 +7,25 @@ import colored_traceback
 colored_traceback.add_hook()
 
 
-class LiklihoodSamplingInference():
+class LikelihoodSamplingInference():
 
-    def __init__(self, transition_probs, evidence_probs, initial_probs, observations, n_samples):
+    def __init__(self, transition_probs, evidence_probs, initial_probs, observations):
         self.n_states = len(initial_probs)
         self.init_probs = initial_probs
         self.ev_probs = evidence_probs
         self.trans_probs = transition_probs
         self.n_observations = len(observations)
         self.observations = observations
-        self.n_samples = n_samples
 
     def max_likelihood_state_estimate(self, probs):
         probs = probs
         states = [np.argmax(np.array(prob_vec)) + 1 for prob_vec in probs]
         return states
 
-    def run_inference(self):
-        samples, weights = self.run_sampling()
+    def run_inference(self, n_samples=100):
+        samples, weights = self.run_sampling(n_samples)
         probs = []
-        for k in range(self.n_observations):
+        for k in range(self.n_observations + 1):
             prob = []
             xk_stack = list(list(zip(*samples))[k])
             for s in range(self.n_states):
@@ -35,15 +34,13 @@ class LiklihoodSamplingInference():
             probs.append(prob)
         return probs
 
-    def run_sampling(self):
+    def run_sampling(self, n_samples):
         samples = []
         weights = []
-        for n in range(self.n_samples):
+        for n in range(n_samples):
             sample, weight = self.liklihood_sampling()
             samples.append(sample)
             weights.append(weight)
-        for idx, sample in enumerate(samples):
-            print(sample, weights[idx])
         return samples, weights
 
     def liklihood_sampling(self):
@@ -62,13 +59,3 @@ class LiklihoodSamplingInference():
 
     def sample_state(self, probs):
         return choice(4, 1, p=probs)[0]
-
-
-# http://www.cse.psu.edu/~rtc12/CSE598C/samplingSlides.pdf
-
-if __name__ == "__main__":
-    lli = LiklihoodSamplingInference(pxk_xkm1, pyk_xk, px0, y_obs_short, 5000)
-    probs = lli.run_inference()
-    for p in probs:
-        print(p)
-    print(lli.max_likelihood_state_estimate(probs))
