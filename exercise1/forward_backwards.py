@@ -133,6 +133,6 @@ class ForwardBackwardHMM():
                 logbeta = -np.inf
                 for j in range(self.n_states):
                     logbeta = elnsum(logbeta, elnproduct(eln(self.trans.transpose()[i, j]), elnproduct(eln(
-                        self.emis[self.obs[k], j]), logbetas[j, k])))
+                        self.emis[self.obs[k - 1], j]), logbetas[j, k])))
                 logbetas[i, k - 1] = logbeta
         return logbetas
