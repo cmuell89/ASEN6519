@@ -11,13 +11,17 @@ if plt.get_backend() == 'Qt5Agg':
     plt.matplotlib.rcParams['figure.dpi'] = qApp.desktop().physicalDpiX()
 plt.rcParams.update({'font.size': 22})
 
+
 def short_state_trace():
-    fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_short)
+    fbhmm = ForwardBackwardHMM(pxk_xkm1, pyk_xk, px0, y_obs_long)
     probs, alphas, betas = fbhmm.forward_backward()
     probs_eln, logalphas, logbetas = fbhmm.forward_backward_eln()
+    print(probs_eln.transpose())
+    print(logalphas.transpose())
+    print(logbetas.transpose())
     state_trace = fbhmm.max_likelihood_state_estimate(probs)
     eln_state_trace = fbhmm.max_likelihood_state_estimate(probs_eln)
-    K = [i for i in range(0, len(y_obs_short) + 1)]
+    K = [i for i in range(0, len(y_obs_long) + 1)]
 
     plt.plot(K, state_trace, marker='+', markersize='12', linestyle='-.', color='b', linewidth=2, drawstyle='steps-mid', label='Regular FB')
 

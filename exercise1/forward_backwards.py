@@ -41,6 +41,8 @@ class ForwardBackwardHMM():
     def forward_backward_eln(self):
         logalphas = self._forward_iter_eln()
         logbetas = self._backward_iter_eln()
+        print(logalphas.shape)
+        print(logbetas.shape)
         probs = np.zeros((self.n_states, self.n_obs + 1))
         for k in range(0, self.n_obs + 1):
             norm = -np.inf
@@ -48,7 +50,7 @@ class ForwardBackwardHMM():
                 probs[i, k] = elnproduct(logalphas[i, k], logbetas[i, k])
                 norm = elnsum(norm, probs[i, k])
             for i in range(self.n_states):
-                probs[i, k] = eexp(elnproduct(probs[i, k], -norm))
+                probs[i, k] = elnproduct(probs[i, k], -norm)
         # for i in range(self.n_obs):
         #     print(sum([p for p in list(probs[:, i]) if p != -np.inf]))
         return probs, logalphas, logbetas
@@ -127,8 +129,9 @@ class ForwardBackwardHMM():
         logbetas = np.zeros((self.n_states, self.n_obs + 1))
         # base case
         logbetas[:, -1] = 0
+        print(logbetas.transpose)
         # recursive case
-        for k in range(self.n_obs, -1, -1):
+        for k in range(self.n_obs, 0, -1):
             for i in range(self.n_states):
                 logbeta = -np.inf
                 for j in range(self.n_states):
