@@ -32,8 +32,11 @@ class BaumWelchHMM():
         self.sequences = sequences if sequences.ndim > 1 else [sequences]
 
     def run_EM(self):
+        elngammas = []
+        elnalphas = []
+        elnbetas = []
+        elnxis = []
         for idx, obs_seq in enumerate(self.sequences):
-            print(obs_seq)
             elngamma, elnalpha, elnbeta = self._e_step(obs_seq)
             self._m_step(elngamma, elnalpha, elnbeta, obs_seq)
         return self.init, self.trans, self.emis
@@ -48,17 +51,16 @@ class BaumWelchHMM():
         self._update_emis(elngamma, obs_seq)
 
     def _eln_xi(self, elnalpha, elnbeta, obs_seq):
-        elnxi = np.zeros((self.n_states, self.n_states, len(obs_seq)))
-        for k in range(len(obs_seq) - 1, -1, -1):
+        elnxi = np.zeros((self.n_states, self.n_states, len(obs_seq) - 1))
+        for k in range(len(obs_seq) - 1):
             normalizer = -np.inf
             for i in range(self.n_states):
                 for j in range(self.n_states):
-                    elnxi[i, j, k - 1] = elnproduct(elnalpha[i, k - 1], elnproduct(eln(self.trans.transpose()[i, j]), elnproduct(eln(self.emis[obs_seq[k] - 1, j]), elnbeta[j, k])))
-                    normalizer = elnsum(normalizer, elnxi[i, j, k - 1])
+                    elnxi[i, j, k] = elnproduct(elnalpha[j, k], elnproduct(eln(self.trans.transpose()[i, j]), elnproduct(eln(self.emis[obs_seq[k + 1] - 1, j]), elnbeta[j, k + 1])))
+                    normalizer = elnsum(normalizer, elnxi[i, j, k])
             for i in range(self.n_states):
                 for j in range(self.n_states):
-                    elnxi[i, j, k - 1] = elnproduct(elnxi[i, j, k - 1], -normalizer)
-            print(elnxi)
+                    elnxi[i, j, k] = elnproduct(elnxi[i, j, k], -normalizer)
         return elnxi
 
     def _update_init(self, elngamma):
@@ -90,7 +92,6 @@ class BaumWelchHMM():
 if __name__ == "__main__":
     obs_sequences = import_data()["unknown_hmm_multi_logs"]
     init, trans, emis = uniform_parameters()
-    print(obs_sequences[0].shape)
     bwhmm = BaumWelchHMM(init, trans, emis, obs_sequences[0:1])
     init, trans, emis = bwhmm.run_EM()
     print(trans)
