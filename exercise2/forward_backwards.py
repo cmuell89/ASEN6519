@@ -20,46 +20,52 @@ class ForwardBackwardHMM():
         return states
 
     def forward_backward_eln(self):
-        logalphas = self._forward_iter_eln()
-        logbetas = self._backward_iter_eln()
-        probs = np.zeros((self.n_states, self.n_obs + 1))
-        for k in range(0, self.n_obs + 1):
-            norm = np.inf
-            for i in range(self.n_states):
-                probs[i, k] = elnproduct(logalphas[i, k], logbetas[i, k])
-                norm = elnsum(norm, probs[i, k])
-            for i in range(self.n_states):
-                probs[i, k] = elnproduct(probs[i, k], -norm)
+        elnalpha = self._forward_iter_eln()
+        elnbeta = self._backward_iter_eln()
+        elngamma, gamma = self._generate_gamma(elnalpha, elnbeta)
         # for i in range(self.n_obs):
         #     print(sum([p for p in list(probs[:, i]) if p != -np.inf]))
-        return probs, logalphas, logbetas
+        return elngamma, gamma, elnalpha, elnbeta
+
+    def _generate_gamma(self, elnalpha, elnbeta):
+        elngamma = np.zeros((self.n_states, self.n_obs + 1))
+        gamma = np.zeros((self.n_states, self.n_obs + 1))
+        for k in range(0, self.n_obs + 1):
+            norm = -np.inf
+            for i in range(self.n_states):
+                elngamma[i, k] = elnproduct(elnalpha[i, k], elnbeta[i, k])
+                norm = elnsum(norm, elngamma[i, k])
+            for i in range(self.n_states):
+                elngamma[i, k] = elnproduct(elngamma[i, k], -norm)
+                gamma[i, k] = eexp(elngamma[i, k])
+        return elngamma, gamma
 
     def _forward_iter_eln(self):
-        logalphas = np.zeros((self.n_states, self.n_obs + 1))
+        elnalpha = np.zeros((self.n_states, self.n_obs + 1))
 
         # base case
-        logalphas[:, 0] = [eln(x) for x in self.init]
+        elnalpha[:, 0] = [eln(x) for x in self.init]
         # recursive case
         for k in range(1, self.n_obs + 1):
             for j in range(self.n_states):
                 logalpha = -np.inf
                 for i in range(self.n_states):
                     logalpha = elnsum(logalpha, elnproduct(
-                        logalphas[i, k - 1], eln(self.trans.transpose()[i, j])))
-                logalphas[j, k] = elnproduct(logalpha, eln(
+                        elnalpha[i, k - 1], eln(self.trans.transpose()[i, j])))
+                elnalpha[j, k] = elnproduct(logalpha, eln(
                     self.emis[self.obs[k - 1], j]))
-        return logalphas
+        return elnalpha
 
     def _backward_iter_eln(self):
-        logbetas = np.zeros((self.n_states, self.n_obs + 1))
+        elnbeta = np.zeros((self.n_states, self.n_obs + 1))
         # base case
-        logbetas[:, -1] = 0
+        elnbeta[:, -1] = 0
         # recursive case
         for k in range(self.n_obs, 0, -1):
             for i in range(self.n_states):
-                logbeta = -np.inf
+                beta = -np.inf
                 for j in range(self.n_states):
-                    logbeta = elnsum(logbeta, elnproduct(eln(self.trans.transpose()[i, j]), elnproduct(eln(
-                        self.emis[self.obs[k - 1], j]), logbetas[j, k])))
-                logbetas[i, k - 1] = logbeta
-        return logbetas
+                    beta = elnsum(beta, elnproduct(eln(self.trans.transpose()[i, j]), elnproduct(eln(
+                        self.emis[self.obs[k - 1], j]), elnbeta[j, k])))
+                elnbeta[i, k - 1] = beta
+        return elnbeta
