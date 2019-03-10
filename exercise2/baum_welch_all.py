@@ -54,8 +54,7 @@ class BaumWelchHMM():
         for n in range(self.n_iters):
             elnxis, xis, elngammas, gammas = self._e_step(init_est, trans_est, emis_est)
             init_est, trans_est, emis_est = self._m_step_eln(elnxis, elngammas, init_est, trans_est, emis_est)
-            # init_est, trans_est, emis_est = self._m_step(xis, gammas)
-            
+            # init_est, trans_est, emis_est = self._m_step(xis, gammas, init_est, trans_est, emis_est)       
         return init_est, trans_est, emis_est
 
     def _e_step(self, init_est, trans_est, emis_est):
@@ -78,16 +77,17 @@ class BaumWelchHMM():
             xis.append(xi)
         return elnxis, xis, elngammas, gammas
 
-    def _m_step(self, xis, gammas):
+    def _m_step(self, xis, gammas, init_est, trans_est, emis_est):
         """
         Maximization step built around the Mann log-space approach as well as the notes given by:
         https://people.eecs.berkeley.edu/~stephentu/writeups/hmm-baum-welch-derivation.pdf
 
         Each of the parameters are updating independently.
         """
-        self._update_init(gammas)
-        self._update_trans(gammas, xis)
-        self._update_emis(gammas)
+        init_est = self._update_init(gammas, init_est)
+        trans_est = self._update_trans(gammas, xis, trans_est)
+        emis_est = self._update_emis(gammas, emis_est)
+        return init_est, trans_est, emis_est
 
     def _m_step_eln(self, elnxis, elngammas, init_est, trans_est, emis_est):
         """
@@ -119,17 +119,23 @@ class BaumWelchHMM():
                     xi[i, j, k] = eexp(elnxi[i, j, k])
         return elnxi, xi
 
-    # def _update_init(self, gammas):
-    #     """
-    #     This function calculate the update value of the initial probabilities as defined by the Berkeley notes references in the _m_step algorithm. It is the average of the sum of probabilities of x_1 over all sequences. i.e. the expected frequency of state Si at time t = 1
-    #     """
-    #     for i in range(self.n_states):
-    #         numerator = 0
-    #         denominator = 0
-    #         for idx in range(len(self.sequences)):
-    #             numerator = numerator + gammas[idx][i, 1]
-    #             denominator = denominator + 1
-    #         self.init[i] = numerator / denominator
+    def _update_init(self, gammas, init_est):
+        """
+        This function calculate the update value of the initial probabilities as defined by the Berkeley notes references in the _m_step algorithm. It is the average of the sum of probabilities of x_1 over all sequences. i.e. the expected frequency of state Si at time t = 1
+        """
+        for i in range(self.n_states):
+            numerator = 0
+            denominator = 0
+            for idx in range(len(self.sequences)):
+                numerator = numerator + gammas[idx][i, 0]
+                denominator = denominator + 1
+            # protect against numerical instability
+            if 1 - numerator / denominator < .000001:
+                init_est[i] = 1
+            else:
+                init_est[i] = numerator / denominator
+            init_est[i] = numerator / denominator
+        return init_est
 
     def _update_init_eln(self, elngammas, init_est):
         """
@@ -139,7 +145,7 @@ class BaumWelchHMM():
             numerator = -np.inf
             denominator = 0
             for idx in range(len(self.sequences)):
-                numerator = elnsum(numerator, elngammas[idx][i, 1])
+                numerator = elnsum(numerator, elngammas[idx][i, 0])
                 denominator += 1
             # protect against numerical instability
             if 1 - eexp(elnproduct(numerator, -eln(denominator))) < .000001:
@@ -148,24 +154,25 @@ class BaumWelchHMM():
                 init_est[i] = eexp(elnproduct(numerator, -eln(denominator)))
         return init_est
 
-    # def _update_trans(self, gammas, xis):
-    #     """
-    #     This function calculates the update of the transition probabilities as defined by the Berkeley notes references in the _m_step algorithm.
+    def _update_trans(self, gammas, xis, trans_est):
+        """
+        This function calculates the update of the transition probabilities as defined by the Berkeley notes references in the _m_step algorithm.
 
-    #     The numerator is the xi values summed across all sequences and across all time steps.
-    #     The denominator is the gamma values summed across all sequences and across all time steps.
-    #     """
-    #     for i in range(self.n_states):
-    #         for j in range(self.n_states):
-    #             numerator = 0
-    #             denominator = 0
-    #             for idx, obs_seq in enumerate(self.sequences):
-    #                 for k in range(1, len(obs_seq)):
-    #                     # print(idx, k, xis[idx][i, j, k - 2])
-    #                     numerator = numerator + xis[idx][i, j, k - 2]
-    #                     denominator = denominator + gammas[idx][i, k - 1]
-    #             # print(numerator, denominator)        
-    #             self.trans[i, j] = numerator / denominator
+        The numerator is the xi values summed across all sequences and across all time steps.
+        The denominator is the gamma values summed across all sequences and across all time steps.
+        """
+        for i in range(self.n_states):
+            for j in range(self.n_states):
+                numerator = 0
+                denominator = 0
+                for idx, obs_seq in enumerate(self.sequences):
+                    for k in range(0, len(obs_seq) + 1):
+                        # print(idx, k, xis[idx][i, j, k - 2])
+                        numerator = numerator + xis[idx][i, j, k]
+                        denominator = denominator + gammas[idx][i, k]
+                # print(numerator, denominator)        
+                trans_est[i, j] = numerator / denominator
+        return trans_est
 
     def _update_trans_eln(self, elngammas, elnxis, trans_est):
         """
@@ -179,29 +186,30 @@ class BaumWelchHMM():
                 numerator = -np.inf
                 denominator = -np.inf
                 for idx, obs_seq in enumerate(self.sequences):
-                    for k in range(0, len(obs_seq)):
-                        numerator = elnsum(numerator, elnxis[idx][i, j, k])
-                        denominator = elnsum(denominator, elngammas[idx][i, k])
+                    for k in range(1, len(obs_seq) + 1):
+                        numerator = elnsum(numerator, elnxis[idx][i, j, k - 1])
+                        denominator = elnsum(denominator, elngammas[idx][i, k - 1])
                 trans_est[i, j] = eexp(elnproduct(numerator, -denominator))
         return trans_est
 
-    # def _update_emis(self, gammas):
-    #     """
-    #     This function calculates the update of the transition probabilities as defined by the Berkeley notes references in the _m_step algorithm.
+    def _update_emis(self, gammas, emis_est):
+        """
+        This function calculates the update of the transition probabilities as defined by the Berkeley notes references in the _m_step algorithm.
 
-    #     The numerator is the gamma values summed across all sequences and across all time steps.
-    #     The denominator is the gamma values summed across all sequences and across all time steps.
-    #     """
-    #     for e in range(self.emis.shape[0]):
-    #         for i in range(self.n_states):
-    #             numerator = 0
-    #             denominator = 0
-    #             for idx, obs_seq in enumerate(self.sequences):
-    #                 for k in range(0, len(obs_seq)):
-    #                     if obs_seq[k] == e:
-    #                         numerator = numerator + gammas[idx][i, k]
-    #                     denominator = denominator + gammas[idx][i, k]
-    #             self.emis[e, i] = numerator / denominator
+        The numerator is the gamma values summed across all sequences and across all time steps.
+        The denominator is the gamma values summed across all sequences and across all time steps.
+        """
+        for e in range(emis_est.shape[0]):
+            for i in range(self.n_states):
+                numerator = 0
+                denominator = 0
+                for idx, obs_seq in enumerate(self.sequences):
+                    for k in range(1, len(obs_seq)):
+                        if obs_seq[k - 1] == e:
+                            numerator = numerator + gammas[idx][i, k + 1]
+                        denominator = denominator + gammas[idx][i, k + 1]
+                emis_est[e, i] = numerator / denominator
+        return emis_est
 
     def _update_emis_eln(self, elngammas, emis_est):
         """
@@ -216,10 +224,10 @@ class BaumWelchHMM():
                 denominator = -np.inf
                 for idx, obs_seq in enumerate(self.sequences):
                     # shifted forward to ignore x0 with no emission.
-                    for k in range(1, len(obs_seq) + 1):
+                    for k in range(1, len(obs_seq)):
                         if obs_seq[k - 1] == e:
-                            numerator = elnsum(numerator, elngammas[idx][i, k])
-                        denominator = elnsum(denominator, elngammas[idx][i, k])
+                            numerator = elnsum(numerator, elngammas[idx][i, k + 1])
+                        denominator = elnsum(denominator, elngammas[idx][i, k + 1])
                 emis_est[e, i] = eexp(elnproduct(numerator, -denominator))
         return emis_est
 
@@ -229,22 +237,21 @@ if __name__ == "__main__":
 
     print(np.sum(init, axis=0))
     print(np.sum(trans, axis=1))
-
     print(np.sum(emis, axis=0))
 
-    bwhmm = BaumWelchHMM(init, trans, emis, obs_sequences[0:50], n_iters=50)
+    bwhmm = BaumWelchHMM(init, trans, emis, obs_sequences[:100], n_iters=20)
     init, trans, emis = bwhmm.run_EM()
-    print("INITIAL PROBS")
+    print("\n\nINITIAL PROBS\n")
     print(init)
     print(np.sum(init, axis=0))
     print(px0)
     print(np.sum(px0, axis=0))
-    print("\n\nTRANSITION PROBS")
+    print("\n\nTRANSITION PROBS:\n")
     print(trans.transpose())
     print(np.sum(trans, axis=1))
     print(pxk_xkm1)
     print(np.sum(pxk_xkm1, axis=0))
-    print("\n\nEMISSION PROBS")
+    print("\n\nEMISSION PROBS\n")
     print(emis)
     print(np.sum(emis, axis=0))
     print(pyk_xk)
